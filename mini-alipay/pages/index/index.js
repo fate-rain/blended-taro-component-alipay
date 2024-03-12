@@ -1,6 +1,6 @@
 Page({
   data: {
-    list: [1,2,3,4,5]
+    list: [1, 2, 3, 4, 5]
   },
   onLoad(query) {
     // 页面加载

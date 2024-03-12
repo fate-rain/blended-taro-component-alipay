@@ -12,7 +12,7 @@ export default function (props) {
         <View>PickerItem: {item}</View>
       ))}
       <Button onClick={() => {
-        console.log('onButtonClick', props.onButtonClick)
+        console.log('Pick Component props.onButtonClick')
         props.onButtonClick()
       }}
       >Click me</Button>

@@ -1,12 +1,32 @@
 function createNativeComponentConfig(Component, react, reactdom, componentConfig) {
+  function compareVersion(v1, v2) {
+    var s1 = v1.split(".");
+    var s2 = v2.split(".");
+    var len = Math.max(s1.length, s2.length);
+
+    for (let i = 0; i < len; i++) {
+      var num1 = parseInt(s1[i] || "0");
+      var num2 = parseInt(s2[i] || "0");
+
+      if (num1 > num2) {
+        return 1;
+      } else if (num1 < num2) {
+        return -1;
+      }
+    }
+
+    return 0;
+  }
+
   var _a, _b;
   reactMeta.R = react;
   h = react.createElement;
   ReactDOM = reactdom;
   setReconciler(ReactDOM);
   const { isNewBlended } = componentConfig;
-  const configs = {
-    weapp: {
+
+  function weappConfig() {
+    return {
       options: componentConfig,
       properties: {
         props: {
@@ -68,57 +88,128 @@ function createNativeComponentConfig(Component, react, reactdom, componentConfig
           safeExecute(this.compId, 'onUnload');
         }
       }
-    },
-    alipay: {
+    }
+  }
+
+  function alipayConfig() {
+    // https://opendocs.alipay.com/mini/framework/component-lifecycle?pathHash=9b628e01#%E8%8A%82%E7%82%B9%E6%A0%91%E7%BB%B4%E5%BA%A6%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%20lifetimes
+    const supportLifetimes = compareVersion(my.SDKVersion,'2.8.5') >= 0;
+
+    if (supportLifetimes) {
+      return {
+        options: componentConfig,
+        deriveDataFromProps(nextProps) {
+          this.setData({ props: nextProps });
+        },
+        onInit() {
+          console.log('onInit...');
+        },
+        lifetimes: {
+          // 在组件实例刚刚被创建时执行。
+          created() {
+            console.log('created...')
+            const app = (isNewBlended ? nativeComponentApp : Current.app);
+            if (!app) {
+              initNativeComponentEntry({
+                R: react,
+                ReactDOM,
+                isDefaultEntryDom: !isNewBlended
+              });
+            }
+          },
+          // 在组件实例进入页面节点树时执行。
+          attached() {
+            const compId = this.compId = getNativeCompId();
+            setCurrent(compId);
+            this.config = componentConfig;
+            const app = (isNewBlended ? nativeComponentApp : Current.app);
+            app.mount(Component, compId, () => this, () => {
+              const instance = getPageInstance(compId);
+              if (instance && instance.node) {
+                const el = document.getElementById(instance.node.uid);
+                if (el) {
+                  el.ctx = this;
+                }
+              }
+            });
+          },
+          // 在组件在视图层布局完成后执行。
+          ready() {
+            console.log('ready...', this.data);
+            safeExecute(this.compId, 'onReady');
+          },
+          // 在组件实例被移动到节点树另一个位置时执行。
+          moved() { },
+          // 在组件实例被从页面节点树移除时执行。
+          detached() {
+            resetCurrent();
+            const app = (isNewBlended ? nativeComponentApp : Current.app);
+            app.unmount(this.compId);
+          },
+        },
+        pageLifetimes: {
+          show(options) {
+            safeExecute(this.compId, 'onShow', options);
+          },
+          hide() {
+            safeExecute(this.compId, 'onHide');
+          }
+        },
+        methods: {
+          eh: eventHandler,
+          onLoad(options) {
+            safeExecute(this.compId, 'onLoad', options);
+          },
+          onUnload() {
+            safeExecute(this.compId, 'onUnload');
+          }
+        }
+      }
+    }
+
+    return {
       options: componentConfig,
       deriveDataFromProps(nextProps) {
         this.setData({ props: nextProps });
       },
       onInit() {
         console.log('onInit...');
-      },
-      lifetimes: {
-        // 在组件实例刚刚被创建时执行。
-        created() {
-          console.log('created...')
-          const app = (isNewBlended ? nativeComponentApp : Current.app);
-          if (!app) {
-            initNativeComponentEntry({
-              R: react,
-              ReactDOM,
-              isDefaultEntryDom: !isNewBlended
-            });
-          }
-        },
-        // 在组件实例进入页面节点树时执行。
-        attached() {
-          const compId = this.compId = getNativeCompId();
-          setCurrent(compId);
-          this.config = componentConfig;
-          const app = (isNewBlended ? nativeComponentApp : Current.app);
-          app.mount(Component, compId, () => this, () => {
-            const instance = getPageInstance(compId);
-            if (instance && instance.node) {
-              const el = document.getElementById(instance.node.uid);
-              if (el) {
-                el.ctx = this;
-              }
-            }
+        const app = (isNewBlended ? nativeComponentApp : Current.app);
+        if (!app) {
+          initNativeComponentEntry({
+            R: react,
+            ReactDOM,
+            isDefaultEntryDom: !isNewBlended
           });
-        },
-        // 在组件在视图层布局完成后执行。
-        ready() {
-          console.log('ready...', this.data);
-          safeExecute(this.compId, 'onReady');
-        },
-        // 在组件实例被移动到节点树另一个位置时执行。
-        moved() { },
-        // 在组件实例被从页面节点树移除时执行。
-        detached() {
-          resetCurrent();
-          const app = (isNewBlended ? nativeComponentApp : Current.app);
-          app.unmount(this.compId);
-        },
+        }
+      },
+      didMount() {
+        console.log('didMount...');
+
+        // attached
+        const compId = this.compId = getNativeCompId();
+        setCurrent(compId);
+        this.config = componentConfig;
+        const app = (isNewBlended ? nativeComponentApp : Current.app);
+        app.mount(Component, compId, () => this, () => {
+          const instance = getPageInstance(compId);
+          if (instance && instance.node) {
+            const el = document.getElementById(instance.node.uid);
+            if (el) {
+              el.ctx = this;
+            }
+          }
+        });
+
+        // ready
+        safeExecute(this.compId, 'onReady');
+      },
+      didUnmount() {
+        console.log('didUnmount...');
+
+        resetCurrent();
+        const app = (isNewBlended ? nativeComponentApp : Current.app);
+        app.unmount(this.compId);
       },
       pageLifetimes: {
         show(options) {
@@ -140,11 +231,18 @@ function createNativeComponentConfig(Component, react, reactdom, componentConfig
     }
   }
 
-  const componentObj = configs[process.env.TARO_ENV];
+  const configs = {
+    weapp: weappConfig,
+    alipay: alipayConfig
+  }
 
-  if (!componentObj) {
+  const componentObjFn = configs[process.env.TARO_ENV];
+
+  if (!componentObjFn) {
     throw new Error(`${process.env.TARO_ENV}不支持`);
   }
+
+  const componentObj = configs[process.env.TARO_ENV]();
 
   function resetCurrent() {
     // 小程序插件页面卸载之后返回到宿主页面时，需重置Current页面和路由。否则引发插件组件二次加载异常 fix:#11991

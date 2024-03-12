@@ -1,0 +1,5 @@
+{
+  "enableLegacyRemoteDebug": false,
+  "disableRemoteDebugSourcePanel": true,
+  "enableCloudBuild": false
+}

@@ -1,0 +1,6 @@
+{
+  "extends": ["taro/react"],
+  "rules": {
+    "import/no-commonjs": 0
+  }
+}

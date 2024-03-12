@@ -1,0 +1,5 @@
+{
+  "usingComponents": {
+    "hl-picker": "../../taro/components/picker/index"
+  }
+}

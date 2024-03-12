@@ -1,0 +1,5 @@
+
+<view>
+  <view onTap="onT">hello world!!!</view>
+  <hl-picker list="{{list}}" onButtonClick="onButtonClick"></hl-picker>
+</view>
